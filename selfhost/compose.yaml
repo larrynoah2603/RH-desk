@@ -1,0 +1,32 @@
+name: rh-desk-local
+
+services:
+  rh-desk:
+    build:
+      context: ..
+      dockerfile: selfhost/Dockerfile
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      # Local machine only, not exposed to internet or LAN.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - rhdesk-data:/data
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('node:http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+volumes:
+  rhdesk-data:
