@@ -79,7 +79,7 @@ export type OfferInput = {
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-export const CURRENCIES = ["EUR", "USD", "GBP", "CAD", "CHF"] as const;
+export const CURRENCIES = ["MGA", "EUR", "USD", "GBP", "CAD", "CHF"] as const;
 
 export function normalizeSkills(value: string | string[]): string[] {
   const list = Array.isArray(value) ? value : value.split(",");
