@@ -35,7 +35,7 @@ test("offer status transitions require manual confirmation, not email sending", 
   await page.goto("/offers");
   await expect(page.getByRole("region",{name:"Suivi des offres d'embauche"})).toBeVisible();
   await expect(page.getByText(/Aucun e-mail n’est envoyé par RH Desk/)).toBeVisible();
-  const pendingOffer = page.locator(".rh-offer-card").filter({has:page.getByRole("button",{name:"Approuver l’offre"})});
+  const pendingOffer = page.locator(".rh-offer-card").filter({has:page.getByRole("heading",{name:"Hugo Lefèvre"})});
   await expect(pendingOffer).toBeVisible();
   await pendingOffer.getByRole("button",{name:"Approuver l’offre"}).click();
   await expect(pendingOffer.getByRole("button",{name:"Marquer comme envoyée"})).toBeVisible();
