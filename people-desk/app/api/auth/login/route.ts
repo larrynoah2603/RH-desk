@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeOrigin, signIn, supabaseConfig } from "@/lib/server/supabase";
+import { readSession, safeOrigin, signIn, supabaseConfig, supabaseFetch } from "@/lib/server/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,21 @@ export async function POST(request: Request) {
   try {
     const success = await signIn(email, password);
     if (!success) return NextResponse.json({ error: "Identifiants incorrects ou compte désactivé." }, { status: 401 });
+    // A one-time, private invitation is accepted only after Supabase
+    // confirms the user's email. The RPC trusts auth.uid() rather than
+    // any client-provided email or organization identifier.
+    try {
+      const session = await readSession();
+      if (session) {
+        await supabaseFetch("/rest/v1/rpc/rh_claim_invitation", {
+          method: "POST",
+          body: "{}",
+        }, session.accessToken);
+      }
+    } catch {
+      // Sign-in can succeed without an organization; the workspace API
+      // still denies access until an authorized membership exists.
+    }
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Service de connexion indisponible." }, { status: 502 });
