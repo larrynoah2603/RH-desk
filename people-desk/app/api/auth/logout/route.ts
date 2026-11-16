@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { clearSession, readSession, safeOrigin, supabaseFetch } from "@/lib/server/supabase";
+import { isLocalEdition, localLogout } from "@/lib/server/local-edition";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   if (!safeOrigin(request)) return NextResponse.json({ error: "Requête non autorisée." }, { status: 403 });
+  if (isLocalEdition()) {
+    try {
+      await localLogout();
+      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    } catch {
+      return NextResponse.json({ error: "Déconnexion impossible." }, { status: 500 });
+    }
+  }
   try {
     const session = await readSession();
     if (session) {
