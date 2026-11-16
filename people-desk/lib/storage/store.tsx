@@ -31,23 +31,102 @@ import {
 } from "@/lib/domain/mutations";
 import type { JobInput, OfferInput, ReviewInput } from "@/lib/domain/validation";
 import type { InterviewStatus, JobStatus, Offer, OfferStatus, PeopleDeskData, Stage, WorkspaceSettings } from "@/lib/domain/types";
-import { createLocalStorageAdapter, type StoreAdapter } from "./adapter";
+import { createLocalStorageAdapter, createMemoryAdapter, type StoreAdapter } from "./adapter";
 import { createSeedData } from "./seed";
 
 type Listener = () => void;
+
+export const IS_REMOTE_MODE = process.env.NEXT_PUBLIC_RH_DESK_REMOTE === "1";
+export type AccessRole = "admin" | "recruiter" | "viewer";
+export type RemoteStatus = {
+  state: "loading" | "saved" | "saving" | "error";
+  role: AccessRole | null;
+  message: string | null;
+  conflict: boolean;
+};
+export const INITIAL_REMOTE_STATUS: RemoteStatus = { state: "loading", role: null, message: null, conflict: false };
 
 export class WorkspaceStore {
   private data: PeopleDeskData;
   private adapter: StoreAdapter;
   private listeners = new Set<Listener>();
+  private remoteListeners = new Set<Listener>();
+  private remoteStatus: RemoteStatus = INITIAL_REMOTE_STATUS;
+  private remoteReady = false;
+  private revision = 0;
+  private remoteBusy = false;
+  private remotePending = false;
 
-  constructor(adapter: StoreAdapter) {
+  constructor(adapter: StoreAdapter, private readonly remoteMode = false) {
     this.adapter = adapter;
     this.data = adapter.read() ?? createSeedData();
   }
 
   getData = (): PeopleDeskData => this.data;
-  isAvailable = () => this.adapter.isAvailable();
+  isAvailable = () => this.remoteMode ? this.remoteReady : this.adapter.isAvailable();
+  isRemoteMode = () => this.remoteMode;
+  getRemoteStatus = () => this.remoteStatus;
+  subscribeRemote = (listener: Listener) => {
+    this.remoteListeners.add(listener);
+    return () => { this.remoteListeners.delete(listener); };
+  };
+  private setRemoteStatus(status: RemoteStatus) {
+    this.remoteStatus = status;
+    for (const listener of this.remoteListeners) listener();
+  }
+  hydrateRemote(data: PeopleDeskData, revision: number, role: AccessRole) {
+    if (!this.remoteMode || this.remoteBusy) return;
+    this.data = data;
+    this.revision = revision;
+    this.remoteReady = true;
+    this.remotePending = false;
+    this.setRemoteStatus({ state: "saved", role, message: null, conflict: false });
+    this.emit();
+  }
+  disconnectRemote() {
+    if (!this.remoteMode) return;
+    this.remoteReady = false;
+    this.remotePending = false;
+    this.revision = 0;
+    this.data = clearData(this.data).ok ? { ...this.data, jobs: [], candidates: [], interviews: [], reviews: [], offers: [], activity: [] } : this.data;
+    this.setRemoteStatus(INITIAL_REMOTE_STATUS);
+    this.emit();
+  }
+  retryRemote() {
+    if (!this.remoteMode || !this.remoteReady || this.remoteStatus.conflict || this.remoteBusy) return;
+    this.remotePending = true;
+    this.setRemoteStatus({ ...this.remoteStatus, state: "saving", message: null });
+    void this.flushRemote();
+  }
+  private async flushRemote() {
+    if (!this.remoteMode || !this.remoteReady || this.remoteBusy || !this.remotePending) return;
+    this.remoteBusy = true;
+    while (this.remotePending && this.remoteReady) {
+      this.remotePending = false;
+      const snapshot = this.data;
+      try {
+        const response = await fetch("/api/workspace", {
+          method: "PUT", cache: "no-store", credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ revision: this.revision, data: snapshot }),
+        });
+        const body = await response.json().catch(() => ({})) as { revision?: number; error?: string };
+        if (!response.ok || !Number.isSafeInteger(body.revision)) {
+          this.remotePending = true;
+          this.setRemoteStatus({ ...this.remoteStatus, state: "error",
+            message: body.error ?? "Impossible d’enregistrer sur le serveur.", conflict: response.status === 409 });
+          break;
+        }
+        this.revision = body.revision!;
+        this.setRemoteStatus({ ...this.remoteStatus, state: this.remotePending ? "saving" : "saved", message: null, conflict: false });
+      } catch {
+        this.remotePending = true;
+        this.setRemoteStatus({ ...this.remoteStatus, state: "error", message: "Connexion perdue. Vos modifications ne sont pas enregistrées.", conflict: false });
+        break;
+      }
+    }
+    this.remoteBusy = false;
+  }
 
   subscribe = (listener: Listener) => {
     this.listeners.add(listener);
@@ -79,9 +158,18 @@ export class WorkspaceStore {
   private commit(result: MutationResult): MutationResult {
     if (!result.ok) return result;
     if (result.data === this.data) return result;
+    if (this.remoteMode && (!this.remoteReady || this.remoteStatus.role === "viewer" || this.remoteStatus.state === "error")) {
+      return { ok: false, error: "Espace non modifiable : synchronisation ou permission indisponible." };
+    }
     const previous = this.data;
     this.data = result.data;
     this.emit();
+    if (this.remoteMode) {
+      this.remotePending = true;
+      this.setRemoteStatus({ ...this.remoteStatus, state: "saving", message: null });
+      void this.flushRemote();
+      return result;
+    }
     if (!this.adapter.write(this.data)) {
       this.data = previous;
       this.emit();
@@ -127,9 +215,9 @@ const StoreContext = createContext<WorkspaceStore | null>(null);
 export const SERVER_SNAPSHOT: PeopleDeskData = createSeedData(new Date());
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const store = useMemo(() => new WorkspaceStore(createLocalStorageAdapter()), []);
+  const store = useMemo(() => new WorkspaceStore(IS_REMOTE_MODE ? createMemoryAdapter() : createLocalStorageAdapter(), IS_REMOTE_MODE), []);
   useLayoutEffect(() => {
-    store.ensurePersisted();
+    if (!IS_REMOTE_MODE) store.ensurePersisted();
   }, [store]);
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }
@@ -138,6 +226,11 @@ export function useStore(): WorkspaceStore {
   const store = useContext(StoreContext);
   if (!store) throw new Error("useStore must be used within StoreProvider");
   return store;
+}
+
+export function useRemoteStatus(): RemoteStatus {
+  const store = useStore();
+  return useSyncExternalStore(store.subscribeRemote, store.getRemoteStatus, () => INITIAL_REMOTE_STATUS);
 }
 
 export function useWorkspaceData(): PeopleDeskData {
