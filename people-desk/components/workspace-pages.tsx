@@ -107,7 +107,7 @@ export function WorkspacePages({ page }: { page: WorkspacePage }) {
   function getOptions(kind: "candidate" | "job") { return kind === "job" ? data.jobs.map((j) => ({ value: j.id, label: j.title })) : data.candidates.map((c) => ({ value: c.id, label: c.name })); }
   const actions: Partial<Record<WorkspacePage, FormMode>> = { jobs: "job", candidates: "candidate", interviews: "interview", reviews: "review", offers: "offer" };
   return (
-    <main id="main-content" className="rh-page">
+    <div className="rh-page">
       <div className="rh-heading"><div><p className="rh-eyebrow">PEOPLE DESK / ESPACE RH</p><h1>{titles[page]}</h1><p className="rh-muted">Gérez vos recrutements et suivez les décisions en un seul endroit.</p></div>
         {canWrite && actions[page] && <button className="rh-primary" type="button" onClick={() => open(actions[page]!)}>+ Ajouter</button>}
       </div>
@@ -138,6 +138,6 @@ export function WorkspacePages({ page }: { page: WorkspacePage }) {
         {error&&<p className="rh-error" role="alert">{error}</p>}
         <div className="rh-actions"><button type="button" onClick={()=>setFormMode(null)}>Annuler</button><button className="rh-primary" type="submit">Enregistrer</button></div>
       </form></section></div>}
-    </main>
+    </div>
   );
 }
