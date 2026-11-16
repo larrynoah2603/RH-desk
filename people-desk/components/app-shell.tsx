@@ -14,13 +14,14 @@ import { Icon, type IconName } from "@/components/ui/icons";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useT } from "@/lib/i18n";
-import { useWorkspaceData } from "@/lib/storage/store";
+import { IS_REMOTE_MODE, useRemoteStatus, useWorkspaceData } from "@/lib/storage/store";
 
 type NavLink = { href: string; label: string; icon: IconName; group: "main" | "account"; badge?: number };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useT();
   const data = useWorkspaceData();
+  const remoteStatus = useRemoteStatus();
   const today = new Date().toDateString();
   const interviewsToday = data.interviews.filter((interview) => interview.status === "scheduled" && new Date(interview.start).toDateString() === today).length;
   const pendingOffers = data.offers.filter((offer) => offer.status === "draft" || offer.status === "review" || offer.status === "approved").length;
@@ -69,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       search={<GlobalSearch />}
       actions={
         <>
-          <span className="kit-demo-pill" title={t.topbar.demoHint}><Icon name="database" />{t.topbar.demo}</span>
+          <span className="kit-demo-pill" role="status" title={IS_REMOTE_MODE ? t.topbar.cloudHint : t.topbar.demoHint}><Icon name="database" />{IS_REMOTE_MODE ? (remoteStatus.state === "saving" ? t.topbar.cloudSaving : remoteStatus.state === "error" ? t.topbar.cloudError : t.topbar.cloud) : t.topbar.demo}</span>
           <NotificationCenter />
           <span className="kit-hotbar-preferences">
             <LanguageToggle />
