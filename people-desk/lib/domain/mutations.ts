@@ -541,6 +541,22 @@ export function advanceOffer(data: PeopleDeskData, id: string, status: OfferStat
   };
 }
 
+/** Only an offer marked as sent can be recorded as declined; no email is sent. */
+export function declineOffer(data: PeopleDeskData, id: string): MutationResult {
+  const current = offerById(data, id);
+  if (!current) return { ok: false, error: "offer.notFound" };
+  if (current.status !== "sent") return { ok: false, error: "offer.invalidStatus" };
+  const next: Offer = { ...current, status: "declined", updatedAt: new Date().toISOString() };
+  return {
+    ok: true,
+    entityId: id,
+    data: withActivity(
+      { ...data, offers: data.offers.map((offer) => offer.id === id ? next : offer) },
+      entry("offer.status", { name: candidateName(data, next.candidateId), status: OFFER_STATUS_LABELS.declined.fr }),
+    ),
+  };
+}
+
 export function deleteOffer(data: PeopleDeskData, id: string): MutationResult {
   const current = offerById(data, id);
   if (!current) return { ok: false, error: "offer.notFound" };

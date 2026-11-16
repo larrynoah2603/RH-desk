@@ -13,6 +13,7 @@ import {
   deleteCandidate as deleteCandidateMutation,
   deleteInterview as deleteInterviewMutation,
   deleteOffer as deleteOfferMutation,
+  declineOffer as declineOfferMutation,
   deleteReview as deleteReviewMutation,
   moveStage as moveStageMutation,
   replaceData,
@@ -213,6 +214,7 @@ export class WorkspaceStore {
   updateOffer = (id: string, patch: Partial<Pick<Offer, "salary" | "currency" | "startDate" | "title" | "notes">>) =>
     this.commit(updateOfferMutation(this.data, id, patch));
   advanceOffer = (id: string, status: OfferStatus) => this.commit(advanceOfferMutation(this.data, id, status));
+  declineOffer = (id: string) => this.commit(declineOfferMutation(this.data, id));
   deleteOffer = (id: string) => this.commit(deleteOfferMutation(this.data, id));
   updateSettings = (patch: Partial<WorkspaceSettings>, silent = true) => this.commit(updateSettingsMutation(this.data, patch, silent));
   importData = (incoming: PeopleDeskData) => {
