@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { IS_REMOTE_MODE, useRemoteStatus, useStore, type AccessRole } from "@/lib/storage/store";
 import type { PeopleDeskData } from "@/lib/domain/types";
 import "./secure-workspace-gate.css";
@@ -23,12 +23,15 @@ export function SecureWorkspaceGate({ children }: { children: ReactNode }) {
   const [password, setPassword] = useState("");
   const [account, setAccount] = useState("");
   const [busy, setBusy] = useState(false);
+  const loadSequence = useRef(0);
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setPhase("checking");
     try {
       const response = await fetch("/api/workspace", { cache: "no-store", credentials: "same-origin" });
       const body = await response.json().catch(() => ({})) as WorkspaceResponse;
+      if (sequence !== loadSequence.current) return;
       if (response.status === 401) { setPhase("login"); setError(""); return; }
       if (!response.ok || !body.data || !Number.isSafeInteger(body.revision) || !body.role) {
         setError(body.error || "L’espace RH n’est pas disponible.");
@@ -40,6 +43,7 @@ export function SecureWorkspaceGate({ children }: { children: ReactNode }) {
       setPhase("ready");
       setError("");
     } catch {
+      if (sequence !== loadSequence.current) return;
       setError("Impossible de joindre le serveur. Vérifiez la connexion.");
       setPhase("error");
     }
@@ -83,12 +87,17 @@ export function SecureWorkspaceGate({ children }: { children: ReactNode }) {
     if ((sync.state === "saving" || sync.state === "error") &&
         !window.confirm("Des modifications ne sont pas synchronisées. Quitter quand même ?")) return;
     setBusy(true);
+    setError("");
     try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
-    } finally {
+      const response = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+      if (!response.ok) throw new Error("La déconnexion a échoué.");
+      loadSequence.current += 1;
       store.disconnectRemote();
       setPhase("login");
       setAccount("");
+    } catch {
+      setError("La déconnexion n’a pas été confirmée. Réessayez.");
+    } finally {
       setBusy(false);
     }
   }
@@ -130,6 +139,7 @@ export function SecureWorkspaceGate({ children }: { children: ReactNode }) {
           {account ? " · " + account : ""}</span>
         <button type="button" onClick={() => void logout()} disabled={busy}>Déconnexion</button>
       </div>
+      {error && <div className="rh-sync-bar rh-sync-error" role="alert">{error}</div>}
       {(sync.state === "saving" || sync.state === "error") && (
         <div className={"rh-sync-bar" + (sync.state === "error" ? " rh-sync-error" : "")} role={sync.state === "error" ? "alert" : "status"}>
           <span>{sync.state === "saving" ? "Enregistrement sur le serveur…" : sync.message}</span>
