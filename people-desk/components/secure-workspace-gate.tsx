@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { IS_REMOTE_MODE, useRemoteStatus, useStore, type AccessRole } from "@/lib/storage/store";
 import type { PeopleDeskData } from "@/lib/domain/types";
+import { downloadFile, serializeData, todayStamp } from "@/lib/storage/export";
 import "./secure-workspace-gate.css";
 
 type Phase = "checking" | "login" | "ready" | "error";
@@ -145,7 +146,11 @@ export function SecureWorkspaceGate({ children }: { children: ReactNode }) {
           <span>{sync.state === "saving" ? "Enregistrement sur le serveur…" : sync.message}</span>
           {sync.state === "error" && (
             sync.conflict
-              ? <button type="button" onClick={() => window.location.reload()}>Recharger la version serveur</button>
+              ? <div className="rh-sync-recovery">
+                  <span>Conflit de version : vos modifications ne sont pas encore sauvegardées sur le serveur.</span>
+                  <button type="button" onClick={() => downloadFile("rh-desk-modifications-non-enregistrees-" + todayStamp() + ".json", serializeData(store.getData()), "application/json")}>Sauvegarder mes modifications (JSON)</button>
+                  <button type="button" onClick={() => window.location.reload()}>Recharger la version serveur</button>
+                </div>
               : <button type="button" onClick={() => store.retryRemote()}>Réessayer la sauvegarde</button>
           )}
         </div>
