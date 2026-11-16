@@ -1,0 +1,12 @@
+.git
+.github
+.qoder
+**/node_modules
+**/.next
+**/.env
+**/.env.*
+**/playwright-report
+**/test-results
+**/.shots
+**/coverage
+selfhost/data
