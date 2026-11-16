@@ -32,7 +32,7 @@ export function localConfigValid(): boolean {
     && process.env.NEXT_PUBLIC_RH_DESK_REMOTE === "1"
     && Boolean(process.env.RH_LOCAL_DATA_DIR?.startsWith("/"))
     && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(process.env.RH_LOCAL_ADMIN_EMAIL ?? "")
-    && /^scrypt\$[a-f0-9]{32}\$[a-f0-9]{128}$/.test(process.env.RH_LOCAL_ADMIN_PASSWORD_HASH ?? "")
+    && /^scrypt:[a-f0-9]{32}:[a-f0-9]{128}$/.test(process.env.RH_LOCAL_ADMIN_PASSWORD_HASH ?? "")
     && (process.env.RH_LOCAL_SESSION_SECRET?.length ?? 0) >= 32
     && Boolean(process.env.RH_DESK_PUBLIC_ORIGIN);
 }
@@ -129,7 +129,7 @@ async function loadSnapshot(): Promise<Snapshot> {
 
 function checkPassword(input: string): boolean {
   if (!localConfigValid() || !input || input.length > 512) return false;
-  const parts = process.env.RH_LOCAL_ADMIN_PASSWORD_HASH!.split("$");
+  const parts = process.env.RH_LOCAL_ADMIN_PASSWORD_HASH!.split(":");
   if (parts.length !== 3 || parts[0] !== "scrypt") return false;
   const candidate = scryptSync(input, Buffer.from(parts[1], "hex"), 64);
   return timingSafeEqual(candidate, Buffer.from(parts[2], "hex"));
