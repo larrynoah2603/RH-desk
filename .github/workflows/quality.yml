@@ -24,3 +24,41 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  team-sql-security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Supabase-compatible migrations and security tests in disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for file in \
+            tests/sql/auth-fixture.sql \
+            supabase/001_rh_workspace.sql \
+            supabase/002_rh_audit_actor_index.sql \
+            supabase/003_rh_verified_email_invitation.sql \
+            supabase/004_rh_team_admin.sql \
+            tests/sql/team-rls-smoke.sql
+          do
+            echo "Checking $file"
+            docker run --rm --network host \
+              -e PGPASSWORD="$PGPASSWORD" \
+              -v "$GITHUB_WORKSPACE:/repo:ro" \
+              postgres:17 \
+              psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -f "/repo/$file"
+          done
