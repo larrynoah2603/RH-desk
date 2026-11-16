@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { PrefsProvider } from "@/lib/i18n";
 import { StoreProvider } from "@/lib/storage/store";
 import { ToastProvider } from "@/components/toast-provider";
+import { SecureWorkspaceGate } from "@/components/secure-workspace-gate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PrefsProvider>
           <StoreProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <ToastProvider><SecureWorkspaceGate>{children}</SecureWorkspaceGate></ToastProvider>
           </StoreProvider>
         </PrefsProvider>
       </body>
