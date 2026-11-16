@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { copyFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { cookies } from "next/headers";
@@ -53,7 +53,7 @@ async function ensureDir() {
 }
 
 function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  return createHmac("sha256", process.env.RH_LOCAL_SESSION_SECRET!).update(token).digest("hex");
 }
 function passwordFingerprint(): string {
   return createHash("sha256").update(process.env.RH_LOCAL_ADMIN_PASSWORD_HASH!).digest("hex");
