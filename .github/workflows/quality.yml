@@ -1,7 +1,7 @@
 name: RH Desk quality checks
 on:
   push:
-    branches: ["main", "feat/**"]
+    branches: ["main", "feat/**", "edition/**"]
   pull_request:
     branches: ["main"]
 jobs:
@@ -24,3 +24,36 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  local-edition:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: people-desk
+    env:
+      NEXT_PUBLIC_RH_DESK_REMOTE: "1"
+      NEXT_PUBLIC_RH_DESK_STORAGE: "local-server"
+      RH_DESK_BACKEND: local
+      RH_DESK_PUBLIC_ORIGIN: "http://127.0.0.1:3001"
+      RH_LOCAL_ADMIN_EMAIL: "admin@example.test"
+      RH_LOCAL_SESSION_SECRET: "ci-local-test-secret-not-used-outside-ci-01234567890123456789"
+      RH_LOCAL_TEST_PASSWORD: "CiOnly-DoNotUseInProduction-2026!"
+      RH_LOCAL_DATA_DIR: "/tmp/rh-desk-local-data"
+      RH_LOCAL_COOKIE_SECURE: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: people-desk/package-lock.json
+      - run: npm ci
+      - name: Create a throwaway scrypt hash for this CI job
+        run: |
+          node -e 'const c=require("node:crypto");const salt=c.randomBytes(16);const hash=c.scryptSync(process.env.RH_LOCAL_TEST_PASSWORD,salt,64);require("node:fs").appendFileSync(process.env.GITHUB_ENV,"RH_LOCAL_ADMIN_PASSWORD_HASH=scrypt:"+salt.toString("hex")+":"+hash.toString("hex")+"\n")'
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test -c playwright.local.config.ts
