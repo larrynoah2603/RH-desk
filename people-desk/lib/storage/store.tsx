@@ -56,6 +56,8 @@ export class WorkspaceStore {
   private revision = 0;
   private remoteBusy = false;
   private remotePending = false;
+  private remoteEpoch = 0;
+  private remoteController: AbortController | null = null;
 
   constructor(adapter: StoreAdapter, private readonly remoteMode = false) {
     this.adapter = adapter;
@@ -75,7 +77,10 @@ export class WorkspaceStore {
     for (const listener of this.remoteListeners) listener();
   }
   hydrateRemote(data: PeopleDeskData, revision: number, role: AccessRole) {
-    if (!this.remoteMode || this.remoteBusy) return;
+    if (!this.remoteMode) return;
+    this.remoteEpoch += 1;
+    this.remoteController?.abort();
+    this.remoteBusy = false;
     this.data = data;
     this.revision = revision;
     this.remoteReady = true;
@@ -85,10 +90,13 @@ export class WorkspaceStore {
   }
   disconnectRemote() {
     if (!this.remoteMode) return;
+    this.remoteEpoch += 1;
+    this.remoteController?.abort();
+    this.remoteBusy = false;
     this.remoteReady = false;
     this.remotePending = false;
     this.revision = 0;
-    this.data = clearData(this.data).ok ? { ...this.data, jobs: [], candidates: [], interviews: [], reviews: [], offers: [], activity: [] } : this.data;
+    this.data = createSeedData();
     this.setRemoteStatus(INITIAL_REMOTE_STATUS);
     this.emit();
   }
@@ -101,16 +109,20 @@ export class WorkspaceStore {
   private async flushRemote() {
     if (!this.remoteMode || !this.remoteReady || this.remoteBusy || !this.remotePending) return;
     this.remoteBusy = true;
-    while (this.remotePending && this.remoteReady) {
+    const epoch = this.remoteEpoch;
+    while (this.remotePending && this.remoteReady && epoch === this.remoteEpoch) {
       this.remotePending = false;
       const snapshot = this.data;
       try {
+        const controller = new AbortController();
+        this.remoteController = controller;
         const response = await fetch("/api/workspace", {
-          method: "PUT", cache: "no-store", credentials: "same-origin",
+          method: "PUT", cache: "no-store", credentials: "same-origin", signal: controller.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ revision: this.revision, data: snapshot }),
         });
         const body = await response.json().catch(() => ({})) as { revision?: number; error?: string };
+        if (epoch !== this.remoteEpoch) return;
         if (!response.ok || !Number.isSafeInteger(body.revision)) {
           this.remotePending = true;
           this.setRemoteStatus({ ...this.remoteStatus, state: "error",
@@ -120,12 +132,16 @@ export class WorkspaceStore {
         this.revision = body.revision!;
         this.setRemoteStatus({ ...this.remoteStatus, state: this.remotePending ? "saving" : "saved", message: null, conflict: false });
       } catch {
+        if (epoch !== this.remoteEpoch) return;
         this.remotePending = true;
         this.setRemoteStatus({ ...this.remoteStatus, state: "error", message: "Connexion perdue. Vos modifications ne sont pas enregistrées.", conflict: false });
         break;
       }
     }
-    this.remoteBusy = false;
+    if (epoch === this.remoteEpoch) {
+      this.remoteBusy = false;
+      this.remoteController = null;
+    }
   }
 
   subscribe = (listener: Listener) => {
