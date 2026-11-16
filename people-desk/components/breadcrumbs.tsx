@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/icons";
 import { useT } from "@/lib/i18n";
