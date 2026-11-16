@@ -89,16 +89,17 @@ create or replace function public.rh_save_workspace(
 ) returns bigint
 language plpgsql security definer set search_path = ''
 as $$
-declare v_next bigint;
+declare
+  v_next bigint;
+  v_role text;
+  v_stored_settings jsonb;
 begin
   if (select auth.uid()) is null then
     raise exception 'not_authenticated' using errcode = '42501';
   end if;
-  if not exists (
-    select 1 from public.rh_memberships m
-    where m.organization_id = p_org and m.user_id = (select auth.uid())
-      and m.role in ('admin','recruiter')
-  ) then
+  select m.role into v_role from public.rh_memberships m
+  where m.organization_id = p_org and m.user_id = (select auth.uid());
+  if v_role is null or v_role not in ('admin','recruiter') then
     raise exception 'access_denied' using errcode = '42501';
   end if;
   if p_data is null
@@ -108,6 +109,16 @@ begin
     or jsonb_typeof(p_data->'candidates') != 'array'
     or octet_length(p_data::text) > 1048576 then
     raise exception 'invalid_snapshot' using errcode = '22023';
+  end if;
+
+  -- Recruiters can modify hiring records, but only administrators may
+  -- change organization settings stored in the snapshot.
+  if v_role = 'recruiter' then
+    select data->'settings' into v_stored_settings
+      from public.rh_workspaces where organization_id = p_org;
+    if v_stored_settings is distinct from p_data->'settings' then
+      raise exception 'admin_required' using errcode = '42501';
+    end if;
   end if;
 
   update public.rh_workspaces
