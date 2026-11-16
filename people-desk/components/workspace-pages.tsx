@@ -186,7 +186,7 @@ export function WorkspacePages({ page }: { page: WorkspacePage }) {
         onCreate={()=>open("offer")}
         onEdit={(item)=>open("offer",item)}
         onAdvance={(id,status)=>notify(store.advanceOffer(id,status),"Statut de l’offre actualisé")}
-        onDecline={(id)=>notify(store.updateOffer(id,{status:"declined"}),"Offre marquée comme déclinée")}
+        onDecline={(id)=>notify(store.declineOffer(id),"Offre marquée comme déclinée")}
         onDelete={(id)=>remove("offer",id)}
       />}
       {page === "reports" && <><div className="rh-stats">{[["Candidatures",data.candidates.length],["Embauches",kpis.hires],["Offres acceptées",data.offers.filter((o)=>o.status==="accepted").length],["Taux de conversion",`${reportKpis(data,new Date(0)).conversionRate}%`]].map(([name,val])=><div className="rh-stat" key={name}><span>{name}</span><strong>{val}</strong></div>)}</div><section className="rh-panel"><h2>Exportation des rapports</h2><div className="rh-actions"><button onClick={()=>downloadFile("candidats.csv",candidatesCsv(data,locale),"text/csv")}>Exporter les candidats (CSV)</button><button onClick={()=>downloadFile("postes.csv",jobStatsCsv(jobStats(data),data,locale),"text/csv")}>Exporter les postes (CSV)</button><button onClick={()=>downloadFile("entretiens.ics",calendarIcs(data),"text/calendar")}>Exporter le calendrier (ICS)</button></div></section></>}
