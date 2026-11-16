@@ -4,6 +4,9 @@
 -- Security definer functions explicitly validate membership and are callable
 -- only by the authenticated role. Anonymous access is denied.
 
+-- Private schema defense in depth: no authenticated/anon policies exist.
+alter table rh_private.rh_invitations enable row level security;
+
 -- Readers cannot SELECT another user's membership directly.
 -- The administrator-only RPC below returns only members of their org.
 
