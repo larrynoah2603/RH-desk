@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { WorkspacePages, type WorkspacePage } from "@/components/workspace-pages";
+import { TeamManagement } from "@/components/team-management";
 
 const MODULES = ["dashboard", "jobs", "candidates", "pipeline", "interviews", "reviews", "offers", "reports", "settings"] as const;
 
 export default function WorkspaceModulePage() {
   const params = useParams<{ module: string }>();
   const moduleName = params.module;
+  if (moduleName === "team") return <TeamManagement />;
   if (!MODULES.some((name) => name === moduleName)) {
     return (
       <div className="rh-page">
