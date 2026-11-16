@@ -70,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       search={<GlobalSearch />}
       actions={
         <>
-          <span className="kit-demo-pill" role="status" title={IS_REMOTE_MODE ? t.topbar.cloudHint : t.topbar.demoHint}><Icon name="database" />{IS_REMOTE_MODE ? (remoteStatus.state === "saving" ? t.topbar.cloudSaving : remoteStatus.state === "error" ? t.topbar.cloudError : t.topbar.cloud) : t.topbar.demo}</span>
+          <span className="kit-demo-pill" role="status" title={IS_REMOTE_MODE ? (process.env.NEXT_PUBLIC_RH_DESK_STORAGE === "local-server" ? t.topbar.localServerHint : t.topbar.cloudHint) : t.topbar.demoHint}><Icon name="database" />{IS_REMOTE_MODE ? (remoteStatus.state === "saving" ? t.topbar.cloudSaving : remoteStatus.state === "error" ? t.topbar.cloudError : (process.env.NEXT_PUBLIC_RH_DESK_STORAGE === "local-server" ? t.topbar.localServer : t.topbar.cloud)) : t.topbar.demo}</span>
           <NotificationCenter />
           <span className="kit-hotbar-preferences">
             <LanguageToggle />
