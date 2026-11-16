@@ -26,6 +26,7 @@ export function TeamManagement(){
   const [team,setTeam]=useState<Team|null>(null);
   const [currentEmail,setCurrentEmail]=useState("");
   const [loading,setLoading]=useState(true);
+  const [clock,setClock]=useState(0);
   const [busy,setBusy]=useState(false);
   const [email,setEmail]=useState("");
   const [role,setRole]=useState<Role>("recruiter");
@@ -40,13 +41,14 @@ export function TeamManagement(){
       if(!response.ok)throw new Error(data.error||"Impossible de charger les membres.");
       if(!Array.isArray(data.members)||!Array.isArray(data.invitations))throw new Error("Réponse d’équipe invalide.");
       setTeam(data);
+      setClock(Date.now());
     }catch(err){setTeam(null);setError(err instanceof Error?err.message:"Erreur réseau.");}
     finally{setLoading(false);}
   },[]);
 
   useEffect(()=>{
     if(!IS_REMOTE_MODE||remote.role!=="admin")return;
-    void reload();
+    queueMicrotask(()=>void reload());
     void fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"}).then(r=>r.json()).then((res:{email?:string})=>setCurrentEmail(res.email??"")).catch(()=>undefined);
   },[remote.role,reload]);
 
@@ -135,7 +137,7 @@ export function TeamManagement(){
       <div className="rh-team-section-head"><div><h2><Clock3 size={18} aria-hidden="true"/> Invitations en attente</h2><p>Invitations non encore réclamées, valables 14 jours</p></div><span>{team?.invitations.length??"—"}</span></div>
       {loading?<p role="status">Chargement…</p>:team?.invitations.length===0?<p className="rh-team-loading">Aucune invitation en attente.</p>:
         <div className="rh-team-invite-list">{team?.invitations.map(inv=>{
-          const expired=new Date(inv.expiresAt).getTime()<Date.now();
+          const expired=clock>0&&new Date(inv.expiresAt).getTime()<clock;
           return <div key={inv.id} className="rh-team-invite-row"><div><strong>{inv.email}</strong><small>{titles[inv.role]} · {expired?"Expirée le":"Expire le"} {frenchDate(inv.expiresAt)}</small></div>
             <button type="button" disabled={busy} onClick={()=>cancel(inv)}>Annuler</button></div>;
         })}</div>}
