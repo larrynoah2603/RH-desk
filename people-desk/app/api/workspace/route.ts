@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parsePeopleDeskData } from "@/lib/domain/validation";
+import { validateWorkspaceSnapshot } from "@/lib/server/workspace-validation";
 import { readSession, safeOrigin, supabaseConfig, supabaseFetch, type Session } from "@/lib/server/supabase";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +42,7 @@ export async function GET() {
     if (!response.ok) return reply({ error: "Lecture du workspace impossible." }, 502);
     const rows = await response.json() as Array<{ data: unknown; revision: number }>;
     if (!Array.isArray(rows) || !rows.length) return reply({ error: "Espace non initialisé. Contactez l’administrateur." }, 409);
-    const data = parsePeopleDeskData(rows[0]?.data);
+    const data = validateWorkspaceSnapshot(rows[0]?.data) ? rows[0]?.data : null;
     const revision = rows[0]?.revision;
     if (!data || typeof revision !== "number" || !Number.isSafeInteger(revision)) {
       return reply({ error: "Les données serveur sont invalides." }, 500);
@@ -78,7 +78,7 @@ export async function PUT(request: Request) {
     catch { return reply({ error: "JSON invalide." }, 400); }
     if (!body || typeof body !== "object") return reply({ error: "Requête incorrecte." }, 400);
     const input = body as Record<string, unknown>;
-    const data = parsePeopleDeskData(input.data);
+    const data = validateWorkspaceSnapshot(input.data) ? input.data : null;
     const revision = input.revision;
     if (!data || typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 0) {
       return reply({ error: "Sauvegarde ou révision invalide." }, 400);
