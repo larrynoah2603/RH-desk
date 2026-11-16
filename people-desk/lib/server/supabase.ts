@@ -22,15 +22,7 @@ export function supabaseConfig(): { url: string; key: string } | null {
   }
 }
 
-export function safeOrigin(request: Request): boolean {
-  const header = request.headers.get("origin");
-  if (!header) return false;
-  try {
-    return new URL(header).origin === new URL(request.url).origin;
-  } catch {
-    return false;
-  }
-}
+export { safeOrigin } from "./origin";
 
 export async function supabaseFetch(
   path: string,
