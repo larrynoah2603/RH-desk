@@ -106,9 +106,78 @@ begin
     or jsonb_typeof(p_data) != 'object'
     or p_data->>'version' != '1'
     or jsonb_typeof(p_data->'jobs') != 'array'
-    or jsonb_typeof(p_data->'candidates') != 'array'
+    or jsonb_typeof(p_data->'candidates') is distinct from 'array'
+    or jsonb_typeof(p_data->'interviews') is distinct from 'array'
+    or jsonb_typeof(p_data->'reviews') is distinct from 'array'
+    or jsonb_typeof(p_data->'offers') is distinct from 'array'
+    or jsonb_typeof(p_data->'activity') is distinct from 'array'
+    or jsonb_typeof(p_data->'settings') is distinct from 'object'
+    or jsonb_typeof(p_data->'savedAt') is distinct from 'string'
+    or jsonb_typeof(p_data->'settings'->'companyName') is distinct from 'string'
+    or jsonb_typeof(p_data->'settings'->'contactEmail') is distinct from 'string'
+    or jsonb_typeof(p_data->'settings'->'hiringLead') is distinct from 'string'
+    or p_data->'settings'->>'locale' not in ('fr','en')
+    or p_data->'settings'->>'theme' not in ('auto','light','dark')
+    or p_data->'settings'->>'density' not in ('normal','compact')
     or octet_length(p_data::text) > 1048576 then
     raise exception 'invalid_snapshot' using errcode = '22023';
+  end if;
+
+  -- Defend the SQL RPC itself against direct authenticated API calls
+  -- that bypass Next.js validation. Invalid snapshots must not poison
+  -- the shared workspace.
+  if exists (
+    select 1 from jsonb_array_elements(p_data->'jobs') as job
+    where jsonb_typeof(job->'id') is distinct from 'string'
+       or jsonb_typeof(job->'title') is distinct from 'string'
+       or jsonb_typeof(job->'skills') is distinct from 'array'
+  ) or exists (
+    select 1 from jsonb_array_elements(p_data->'candidates') as candidate
+    where jsonb_typeof(candidate->'id') is distinct from 'string'
+       or jsonb_typeof(candidate->'jobId') is distinct from 'string'
+       or jsonb_typeof(candidate->'email') is distinct from 'string'
+       or jsonb_typeof(candidate->'stageHistory') is distinct from 'array'
+  ) or exists (
+    select 1 from jsonb_array_elements(p_data->'interviews') as interview
+    where jsonb_typeof(interview->'candidateId') is distinct from 'string'
+  ) or exists (
+    select 1 from jsonb_array_elements(p_data->'reviews') as review
+    where jsonb_typeof(review->'candidateId') is distinct from 'string'
+       or jsonb_typeof(review->'scores') is distinct from 'object'
+  ) or exists (
+    select 1 from jsonb_array_elements(p_data->'offers') as offer
+    where jsonb_typeof(offer->'candidateId') is distinct from 'string'
+       or jsonb_typeof(offer->'salary') is distinct from 'number'
+  ) then
+    raise exception 'invalid_records' using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1 from jsonb_array_elements(p_data->'candidates') as c
+    where not exists (
+      select 1 from jsonb_array_elements(p_data->'jobs') as j
+      where j->>'id' = c->>'jobId'
+    )
+  ) or exists (
+    select 1 from jsonb_array_elements(p_data->'interviews') as i
+    where not exists (
+      select 1 from jsonb_array_elements(p_data->'candidates') as c
+      where c->>'id' = i->>'candidateId'
+    )
+  ) or exists (
+    select 1 from jsonb_array_elements(p_data->'reviews') as r
+    where not exists (
+      select 1 from jsonb_array_elements(p_data->'candidates') as c
+      where c->>'id' = r->>'candidateId'
+    )
+  ) or exists (
+    select 1 from jsonb_array_elements(p_data->'offers') as o
+    where not exists (
+      select 1 from jsonb_array_elements(p_data->'candidates') as c
+      where c->>'id' = o->>'candidateId'
+    )
+  ) then
+    raise exception 'invalid_references' using errcode = '22023';
   end if;
 
   -- Recruiters can modify hiring records, but only administrators may
