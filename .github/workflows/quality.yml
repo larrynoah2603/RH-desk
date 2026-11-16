@@ -57,3 +57,36 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test -c playwright.local.config.ts
+      - name: Build local Docker image
+        working-directory: .
+        run: docker build -f selfhost/Dockerfile -t rhdesk-local-ci .
+      - name: Boot local Docker image with a persistent data volume
+        working-directory: .
+        run: |
+          docker volume create rhdesk-smoke-volume
+          docker run -d --name rhdesk-smoke -p 127.0.0.1:3100:3000 \
+            --env RH_DESK_BACKEND=local \
+            --env NEXT_PUBLIC_RH_DESK_REMOTE=1 \
+            --env NEXT_PUBLIC_RH_DESK_STORAGE=local-server \
+            --env RH_LOCAL_DATA_DIR=/data \
+            --env RH_LOCAL_COOKIE_SECURE=0 \
+            --env RH_DESK_PUBLIC_ORIGIN=http://127.0.0.1:3100 \
+            --env RH_LOCAL_ADMIN_EMAIL="$RH_LOCAL_ADMIN_EMAIL" \
+            --env RH_LOCAL_ADMIN_PASSWORD_HASH="$RH_LOCAL_ADMIN_PASSWORD_HASH" \
+            --env RH_LOCAL_SESSION_SECRET="$RH_LOCAL_SESSION_SECRET" \
+            -v rhdesk-smoke-volume:/data rhdesk-local-ci
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3100/api/health > /tmp/rhdesk-ci-health.json; then
+              cat /tmp/rhdesk-ci-health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs rhdesk-smoke
+          exit 1
+      - name: Clean temporary Docker data
+        if: always()
+        working-directory: .
+        run: |
+          docker rm -f rhdesk-smoke || true
+          docker volume rm rhdesk-smoke-volume || true
