@@ -1,0 +1,14 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const errors = [];
+page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+page.on("pageerror", (e) => errors.push(String(e)));
+await page.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+await page.waitForTimeout(1200);
+await page.screenshot({ path: ".shots/landing-1440.png", fullPage: true });
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(600);
+await page.screenshot({ path: ".shots/landing-390.png", fullPage: true });
+console.log("errors:", JSON.stringify(errors));
+await browser.close();
