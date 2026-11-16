@@ -78,6 +78,13 @@ jobs:
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:3100/api/health > /tmp/rhdesk-ci-health.json; then
               cat /tmp/rhdesk-ci-health.json
+              curl --fail --silent --show-error --cookie-jar /tmp/rhdesk-ci-cookies.txt \
+                -H "Origin: http://127.0.0.1:3100" \
+                -H "Content-Type: application/json" \
+                --data "{\"email\":\"$RH_LOCAL_ADMIN_EMAIL\",\"password\":\"$RH_LOCAL_TEST_PASSWORD\"}" \
+                http://127.0.0.1:3100/api/auth/login | grep -q '"ok":true'
+              curl --fail --silent --show-error --cookie /tmp/rhdesk-ci-cookies.txt \
+                http://127.0.0.1:3100/api/workspace | grep -q '"revision":0'
               exit 0
             fi
             sleep 2
