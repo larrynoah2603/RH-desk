@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { readSession, safeOrigin, signIn, supabaseConfig, supabaseFetch } from "@/lib/server/supabase";
+import { isLocalEdition, localConfigValid, localSignIn } from "@/lib/server/local-edition";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   if (!safeOrigin(request)) return NextResponse.json({ error: "Requête non autorisée." }, { status: 403 });
-  if (!supabaseConfig()) return NextResponse.json({ error: "Connexion serveur non configurée." }, { status: 503 });
+  if (isLocalEdition() ? !localConfigValid() : !supabaseConfig()) return NextResponse.json({ error: "Connexion serveur non configurée." }, { status: 503 });
   let input: unknown;
   try { input = await request.json(); }
   catch { return NextResponse.json({ error: "Requête invalide." }, { status: 400 }); }
@@ -16,6 +17,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Identifiants invalides." }, { status: 400 });
   }
   try {
+    if (isLocalEdition()) {
+      const success = await localSignIn(email, password);
+      return success ? NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } }) : NextResponse.json({ error: "Identifiants invalides ou accès temporairement bloqué." }, { status: 401 });
+    }
     const success = await signIn(email, password);
     if (!success) return NextResponse.json({ error: "Identifiants incorrects ou compte désactivé." }, { status: 401 });
     // A one-time, private invitation is accepted only after Supabase
