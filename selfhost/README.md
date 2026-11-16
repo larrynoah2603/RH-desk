@@ -29,8 +29,14 @@ docker run --rm -it -v "$PWD:/config" -w /config node:22-alpine node setup.mjs
 Windows PowerShell :
 
 ~~~powershell
-docker run --rm -it -v "\${PWD}:/config" -w /config node:22-alpine node setup.mjs
+docker run --rm -it -v "${PWD}:/config" -w /config node:22-alpine node setup.mjs
 ~~~
+
+## Installation simplifiée sous Windows
+
+Dans le dossier **selfhost**, double-cliquez sur **START_WINDOWS.bat** après avoir lancé Docker Desktop. Au premier lancement, le script vous demande l’e-mail administrateur et affiche le mot de passe initial une seule fois. Les scripts **STOP_WINDOWS.bat** et **BACKUP_WINDOWS.bat** permettent d’arrêter le serveur ou de récupérer une copie des données.
+
+Les sauvegardes locales faites par ce script sont placées dans **selfhost/backups/** (dossier ignoré par Git). Protégez ce répertoire : les fichiers JSON ne sont pas chiffrés automatiquement.
 
 ## Démarrage
 
