@@ -5,7 +5,7 @@ test("professional jobs panel filters, sorts and edits a job", async ({ page }) 
   await expect(page.locator(".rh-jobs-summary")).toBeVisible();
   await expect(page.locator(".rh-job-card").first()).toBeVisible();
   const all = await page.locator(".rh-job-card").count();
-  await page.getByRole("button", { name: "En pause", exact: true }).click();
+  await page.getByRole("button", { name: /^(En pause|Paused)$/ }).click();
   await expect(page.getByRole("button", { name: "En pause", exact: true })).toHaveAttribute("aria-pressed", "true");
   const paused = await page.locator(".rh-job-card").count();
   expect(paused).toBeLessThanOrEqual(all);
