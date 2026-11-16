@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateWorkspaceSnapshot } from "@/lib/server/workspace-validation";
 import { readSession, safeOrigin, supabaseConfig, supabaseFetch, type Session } from "@/lib/server/supabase";
+import { isLocalEdition, localConfigValid, localSave, localSession, localWorkspace } from "@/lib/server/local-edition";
 
 export const dynamic = "force-dynamic";
 const MAX_PAYLOAD = 1_048_576;
@@ -27,6 +28,17 @@ async function findMembership(session: Session): Promise<Member | null> {
 }
 
 export async function GET() {
+  if (isLocalEdition()) {
+    if (!localConfigValid()) return reply({ error: "Serveur local non configuré." }, 503);
+    try {
+      const session = await localSession();
+      if (!session) return reply({ error: "Connexion requise." }, 401);
+      const result = await localWorkspace();
+      return reply({ data: result.data, revision: result.revision, role: "admin", organizationId: "self-hosted", userEmail: session.email });
+    } catch {
+      return reply({ error: "Lecture du disque impossible. Vérifiez les sauvegardes." }, 500);
+    }
+  }
   if (!supabaseConfig()) return reply({ error: "Serveur non configuré." }, 503);
   try {
     const session = await readSession();
@@ -61,6 +73,20 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   if (!safeOrigin(request)) return reply({ error: "Origine non autorisée." }, 403);
+  if (isLocalEdition()) {
+    if (!localConfigValid()) return reply({ error: "Serveur local non configuré." }, 503);
+    const session = await localSession();
+    if (!session) return reply({ error: "Connexion requise." }, 401);
+    const length = Number(request.headers.get("content-length") || 0);
+    if (length > MAX_PAYLOAD + 500) return reply({ error: "Sauvegarde trop volumineuse." }, 413);
+    let payload: unknown;
+    try { payload = JSON.parse(await request.text()); } catch { return reply({ error: "JSON invalide." }, 400); }
+    if (!payload || typeof payload !== "object") return reply({ error: "Requête incorrecte." }, 400);
+    const { data, revision } = payload as Record<string, unknown>;
+    const result = await localSave(data, revision);
+    if (!result.ok) return reply({ error: result.code === "conflict" ? "Données modifiées dans une autre fenêtre. Rechargez la page." : result.code === "invalid" ? "Données invalides ou trop volumineuses." : result.code === "unauthorized" ? "Accès refusé." : "Enregistrement sur disque impossible." }, result.code === "conflict" ? 409 : result.code === "invalid" ? 400 : result.code === "unauthorized" ? 401 : 500);
+    return reply({ revision: result.revision });
+  }
   if (!supabaseConfig()) return reply({ error: "Serveur non configuré." }, 503);
   const length = Number(request.headers.get("content-length") || 0);
   if (length > MAX_PAYLOAD + 500) return reply({ error: "Sauvegarde trop volumineuse." }, 413);
