@@ -36,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/reviews", label: t.nav.reviews, icon: "star", group: "main" },
     { href: "/offers", label: t.nav.offers, icon: "file", group: "main", badge: pendingOffers },
     { href: "/reports", label: t.nav.reports, icon: "chart", group: "main" },
+    ...(IS_REMOTE_MODE && remoteStatus.role === "admin" ? [{ href: "/team", label: "Utilisateurs et accès", icon: "users" as IconName, group: "account" as const }] : []),
     { href: "/settings", label: t.nav.settings, icon: "sliders", group: "account" },
   ];
 
