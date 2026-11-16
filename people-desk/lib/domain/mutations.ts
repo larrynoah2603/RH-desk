@@ -1,7 +1,7 @@
 import { ACTIVITY_MESSAGES, formatTemplate } from "./activity";
 import { OFFER_STATUS_LABELS, STAGE_LABELS } from "./labels";
 import type { JobInput, OfferInput, ReviewInput } from "./validation";
-import { normalizeSkills, parseSalary, validateJob, validateOffer, validateReview } from "./validation";
+import { normalizeSkills, parseSalary, validateCandidate, validateInterview, validateJob, validateOffer, validateReview } from "./validation";
 import {
   SCHEDULABLE_STAGES,
   STAGES,
@@ -170,6 +170,8 @@ export type CreateCandidateInput = {
 };
 
 export function createCandidate(data: PeopleDeskData, input: CreateCandidateInput, now = new Date().toISOString()): MutationResult {
+  if (!jobById(data, input.jobId)) return { ok: false, error: "candidate.jobRequired" };
+  if (Object.keys(validateCandidate(input, data.candidates)).length) return { ok: false, error: "validation" };
   const stage = input.stage ?? "Applied";
   const candidate: Candidate = {
     id: createId("cand"),
@@ -205,6 +207,10 @@ export type CandidatePatch = Partial<
 export function updateCandidate(data: PeopleDeskData, id: string, patch: CandidatePatch): MutationResult {
   const current = candidateById(data, id);
   if (!current) return { ok: false, error: "candidate.notFound" };
+  const merged = { ...current, ...patch };
+  if (!jobById(data, merged.jobId) || Object.keys(validateCandidate(merged, data.candidates, id)).length) {
+    return { ok: false, error: "validation" };
+  }
   const updated: Candidate = {
     ...current,
     ...patch,
@@ -312,6 +318,7 @@ export type ScheduleInterviewInput = {
 export function scheduleInterview(data: PeopleDeskData, input: ScheduleInterviewInput, now = new Date().toISOString()): MutationResult {
   const candidate = candidateById(data, input.candidateId);
   if (!candidate) return { ok: false, error: "interview.candidateRequired" };
+  if (Object.keys(validateInterview(input, data.interviews)).length) return { ok: false, error: "validation" };
   const interview: Interview = {
     id: createId("int"),
     candidateId: input.candidateId,
@@ -339,6 +346,8 @@ export function scheduleInterview(data: PeopleDeskData, input: ScheduleInterview
 export function updateInterview(data: PeopleDeskData, id: string, input: ScheduleInterviewInput): MutationResult {
   const current = interviewById(data, id);
   if (!current) return { ok: false, error: "interview.notFound" };
+  if (!candidateById(data, input.candidateId) || Object.keys(validateInterview(input, data.interviews, id)).length) return { ok: false, error: "validation" };
+  if (input.candidateId !== current.candidateId && data.reviews.some((r) => r.interviewId === id)) return { ok: false, error: "interview.reviewConflict" };
   const updated: Interview = {
     ...current,
     candidateId: input.candidateId,
@@ -366,7 +375,8 @@ export function deleteInterview(data: PeopleDeskData, id: string): MutationResul
     ok: true,
     entityId: id,
     data: withActivity(
-      { ...data, interviews: data.interviews.filter((interview) => interview.id !== id) },
+      { ...data, interviews: data.interviews.filter((interview) => interview.id !== id),
+        reviews: data.reviews.map((review) => review.interviewId === id ? { ...review, interviewId: undefined } : review) },
       entry("interview.deleted", { name: candidateName(data, current.candidateId) }),
     ),
   };
@@ -391,7 +401,7 @@ export function setInterviewStatus(data: PeopleDeskData, id: string, status: Int
 
 export function createReview(data: PeopleDeskData, input: ReviewInput, author: string): MutationResult {
   const errors = validateReview(input, data.candidates);
-  if (Object.keys(errors).length) return { ok: false, error: "validation" };
+  if (Object.keys(errors).length || (input.interviewId && !data.interviews.some((i) => i.id === input.interviewId && i.candidateId === input.candidateId))) return { ok: false, error: "validation" };
   const review: Review = {
     id: createId("rev"),
     candidateId: input.candidateId,
@@ -418,7 +428,7 @@ export function updateReview(data: PeopleDeskData, id: string, input: ReviewInpu
   const current = data.reviews.find((review) => review.id === id);
   if (!current) return { ok: false, error: "review.notFound" };
   const errors = validateReview(input, data.candidates);
-  if (Object.keys(errors).length) return { ok: false, error: "validation" };
+  if (Object.keys(errors).length || (input.interviewId && !data.interviews.some((i) => i.id === input.interviewId && i.candidateId === input.candidateId))) return { ok: false, error: "validation" };
   const updated: Review = {
     ...current,
     interviewId: input.interviewId || undefined,
@@ -521,7 +531,11 @@ export function advanceOffer(data: PeopleDeskData, id: string, status: OfferStat
     ok: true,
     entityId: id,
     data: withActivity(
-      { ...data, offers: others.map((item) => (item.id === id ? offer : item)) },
+      { ...data, offers: others.map((item) => (item.id === id ? offer : item)),
+        candidates: status === "accepted" ? data.candidates.map((c) =>
+          c.id !== offer.candidateId || c.stage === "Hired" ? c :
+          { ...c, stage: "Hired", stageHistory: [...c.stageHistory, { stage: "Hired" as Stage, at: offer.updatedAt }], updatedAt: offer.updatedAt },
+        ) : data.candidates },
       entry("offer.status", { name: candidateName(data, offer.candidateId), status: OFFER_STATUS_LABELS[status].fr }),
     ),
   };
