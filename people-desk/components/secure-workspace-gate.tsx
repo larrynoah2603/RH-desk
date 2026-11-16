@@ -46,7 +46,7 @@ export function SecureWorkspaceGate({ children }: { children: ReactNode }) {
   }, [store]);
 
   useEffect(() => {
-    if (IS_REMOTE_MODE) void load();
+    if (IS_REMOTE_MODE) queueMicrotask(() => void load());
   }, [load]);
 
   useEffect(() => {
