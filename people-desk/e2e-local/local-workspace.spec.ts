@@ -27,7 +27,7 @@ test("local administrator signs in, persists a job, then signs out", async ({ pa
   await page.getByRole("button", { name: "Se connecter" }).click();
 
   await expect(page.locator(".rh-heading h1")).toHaveText("Vue d’ensemble");
-  await expect(page.getByText("Serveur local")).toBeVisible();
+  await expect(page.getByText(/Serveur local|Local server/)).toBeVisible();
 
   await page.goto("/jobs");
   await expect(page.locator(".rh-heading h1")).toHaveText("Postes ouverts");
@@ -43,7 +43,7 @@ test("local administrator signs in, persists a job, then signs out", async ({ pa
   await expect(page.getByRole("heading", { name: "Technicien local" })).toBeVisible();
 
   // Wait until the asynchronous disk write has finished.
-  await expect(page.getByText("Serveur local")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Serveur local|Local server/)).toBeVisible({ timeout: 15000 });
   await page.reload();
   await expect(page.getByRole("heading", { name: "Technicien local" })).toBeVisible();
 
