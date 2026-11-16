@@ -91,7 +91,7 @@ export function HiringPipeline({data,locale,canWrite,onMove}:PipelineProps){
   const active=scoped.filter(candidate=>candidate.stage!=="Hired"&&candidate.stage!=="Rejected").length;
   return <div className="rh-pipeline-pro">
     <div className="rh-pipeline-intro">
-      <div><span className="rh-overview-section-kicker">VUE OPÉRATIONNELLE</span><h2>Suivez chaque candidature, étape par étape.</h2><p>Déplacez les talents dans le processus de recrutement sans perdre leur historique.</p></div>
+      <div><span className="rh-pipeline-kicker">VUE OPÉRATIONNELLE</span><h2>Suivez chaque candidature, étape par étape.</h2><p>Déplacez les talents dans le processus de recrutement sans perdre leur historique.</p></div>
       <div className="rh-pipeline-total"><strong>{active}</strong><span>en cours</span></div>
     </div>
     <div className="rh-pipeline-controls">
