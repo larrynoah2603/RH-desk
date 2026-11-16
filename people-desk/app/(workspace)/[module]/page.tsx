@@ -11,11 +11,11 @@ export default function WorkspaceModulePage() {
   const moduleName = params.module;
   if (!MODULES.some((name) => name === moduleName)) {
     return (
-      <main id="main-content" className="rh-page">
+      <div className="rh-page">
         <h1>Page introuvable</h1>
         <p>Ce module n’existe pas.</p>
         <Link href="/dashboard">Retour au tableau de bord</Link>
-      </main>
+      </div>
     );
   }
   return <WorkspacePages page={moduleName as WorkspacePage} />;
