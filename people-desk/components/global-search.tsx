@@ -92,7 +92,6 @@ export function GlobalSearch() {
           placeholder={t.topbar.search}
           aria-label={t.topbar.search}
           aria-controls={hasPanel ? resultsId : undefined}
-          aria-expanded={hasPanel}
         />
         {expanded ? (
           <button type="button" className="kit-search-clear" onClick={() => { setOpen(false); setExpanded(false); setQuery(""); }} aria-label={t.common.close}><Icon name="x" /></button>

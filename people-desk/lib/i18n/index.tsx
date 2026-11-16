@@ -75,10 +75,12 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     const initialLocale = readPref(LOCALE_KEY, LOCALES, detectLocale());
     const initialTheme = readPref(THEME_KEY, THEMES, "auto");
     const initialDensity = readPref(DENSITY_KEY, DENSITIES, "normal");
-    setLocaleState(initialLocale);
-    setThemeState(initialTheme);
-    setDensityState(initialDensity);
-    setResolvedTheme(resolveTheme(initialTheme));
+    queueMicrotask(() => {
+      setLocaleState(initialLocale);
+      setThemeState(initialTheme);
+      setDensityState(initialDensity);
+      setResolvedTheme(resolveTheme(initialTheme));
+    });
     applyDocument(initialLocale, initialTheme, initialDensity);
   }, []);
 

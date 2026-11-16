@@ -24,7 +24,9 @@ export function todayStamp(now = new Date()): string {
 }
 
 function csvCell(value: string | number): string {
-  const text = String(value);
+  const raw = String(value);
+  // Prevent CSV formula injection when an export is opened in a spreadsheet.
+  const text = /^[\s]*[=+\-@\t\r]/.test(raw) ? "'" + raw : raw;
   return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

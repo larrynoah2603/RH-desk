@@ -83,7 +83,7 @@ export function label(map: LabelMap, key: string, locale: Locale): string {
   return map[key]?.[locale] ?? key;
 }
 
-const CURRENCY_LOCALES: Record<string, string> = { EUR: "fr-FR", USD: "en-US", GBP: "en-GB", CAD: "fr-CA", CHF: "de-CH" };
+const CURRENCY_LOCALES: Record<string, string> = { MGA: "fr-MG", EUR: "fr-FR", USD: "en-US", GBP: "en-GB", CAD: "fr-CA", CHF: "de-CH" };
 
 export function formatMoney(amount: number, currency: string, locale: Locale): string {
   try {

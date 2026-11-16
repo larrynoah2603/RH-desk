@@ -13,7 +13,7 @@ export function CollapsibleShell({ sidebar, topbar, mobileNavigation, children }
 
   useEffect(() => {
     try {
-      setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "true");
+      queueMicrotask(() => setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "true"));
     } catch {
       /* storage unavailable */
     }
