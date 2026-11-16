@@ -47,7 +47,7 @@ export function CandidateDirectory({ data, candidates, locale, canWrite, onEdit,
 
   useEffect(() => {
     if (!selectedId) return;
-    const onKey = (event: KeyboardEvent) => {if(event.key === "Escape")setSelectedId(null);};
+    const onKey = (event: KeyboardEvent) => {if(event.key === "Escape"){setSelectedId(null);window.requestAnimationFrame(()=>previousFocus.current?.focus());}};
     window.addEventListener("keydown", onKey);
     const raf = window.requestAnimationFrame(()=>closeRef.current?.focus());
     return () => {window.removeEventListener("keydown", onKey);window.cancelAnimationFrame(raf);};
