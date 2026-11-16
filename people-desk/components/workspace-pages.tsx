@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useStore, useWorkspaceData } from "@/lib/storage/store";
 import { dashboardKpis, jobStats, reportKpis, stageCounts } from "@/lib/domain/metrics";
@@ -47,7 +47,7 @@ export function WorkspacePages({ page }: { page: WorkspacePage }) {
   const jobName = (id: string) => data.jobs.find((job) => job.id === id)?.title ?? "Poste inconnu";
   const candidateName = (id: string) => data.candidates.find((candidate) => candidate.id === id)?.name ?? "Candidat inconnu";
   const matches = (value: string) => value.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
-  const candidates = useMemo(() => data.candidates.filter((c) => matches(c.name + " " + c.email + " " + jobName(c.jobId)) && (stageFilter === "all" || c.stage === stageFilter)), [data, search, stageFilter]);
+  const candidates = data.candidates.filter((c) => matches(c.name + " " + c.email + " " + jobName(c.jobId)) && (stageFilter === "all" || c.stage === stageFilter));
   const notify = (result: { ok: boolean; error?: string }, message: string) => {
     if (result.ok) { setError(""); setFormMode(null); setEditing(null); setForm({}); toast(message); }
     else { setError(result.error ?? "Opération impossible"); toast({ kind: "error", title: "Échec de l’opération", description: result.error ?? "Vérifiez les informations." }); }
